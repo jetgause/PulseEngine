@@ -522,6 +522,192 @@ Official SDKs will be available for:
 
 ---
 
+## Market Data Endpoints
+
+### Get Real-Time Quotes
+
+Fetch real-time stock quotes from Alpaca.
+
+```http
+GET /market-data/quotes?symbols=AAPL,TSLA,MSFT
+```
+
+**Authentication**: Required
+
+**Query Parameters**:
+- `symbols` (string, required): Comma-separated list of stock symbols (max 50)
+
+**Response**:
+
+```json
+{
+  "data": {
+    "AAPL": {
+      "ap": 178.23,
+      "as": 100,
+      "ax": "Q",
+      "bp": 178.21,
+      "bs": 200,
+      "bx": "Q",
+      "t": "2024-12-07T15:30:00Z"
+    },
+    "TSLA": {
+      "ap": 242.15,
+      "as": 150,
+      "ax": "Q",
+      "bp": 242.10,
+      "bs": 300,
+      "bx": "Q",
+      "t": "2024-12-07T15:30:00Z"
+    }
+  }
+}
+```
+
+**Rate Limits**:
+- Free: 100 calls/day (15-minute delayed data)
+- Pro: 1,000 calls/day (real-time data)
+- Premium: 10,000 calls/day (real-time data)
+- Enterprise: Unlimited
+
+---
+
+### Get Options Chain
+
+Fetch options chain data from Tradier.
+
+```http
+GET /market-data/options-chain?symbol=SPY&expiration=2024-12-15
+```
+
+**Authentication**: Required
+
+**Query Parameters**:
+- `symbol` (string, required): Stock symbol (e.g., "SPY", "AAPL")
+- `expiration` (string, optional): Expiration date in YYYY-MM-DD format. If omitted, returns all available expirations.
+
+**Response**:
+
+```json
+{
+  "data": [
+    {
+      "symbol": "SPY241215C00450000",
+      "strike": 450,
+      "option_type": "call",
+      "expiration_date": "2024-12-15",
+      "bid": 5.20,
+      "ask": 5.30,
+      "last": 5.25,
+      "volume": 15420,
+      "open_interest": 28500,
+      "implied_volatility": 0.18,
+      "delta": 0.65,
+      "gamma": 0.012,
+      "theta": -0.05,
+      "vega": 0.15
+    },
+    {
+      "symbol": "SPY241215P00450000",
+      "strike": 450,
+      "option_type": "put",
+      "expiration_date": "2024-12-15",
+      "bid": 3.10,
+      "ask": 3.20,
+      "last": 3.15,
+      "volume": 12800,
+      "open_interest": 22100,
+      "implied_volatility": 0.16,
+      "delta": -0.35,
+      "gamma": 0.012,
+      "theta": -0.04,
+      "vega": 0.15
+    }
+  ]
+}
+```
+
+**Tier Requirements**:
+- Free: Not available
+- Pro: Up to 5 symbols per day
+- Premium: Up to 50 symbols per day
+- Enterprise: Unlimited
+
+---
+
+### Get Gamma Exposure
+
+Calculate gamma exposure and identify gamma walls.
+
+```http
+GET /market-data/gamma-exposure?symbol=SPY
+```
+
+**Authentication**: Required
+
+**Query Parameters**:
+- `symbol` (string, required): Stock symbol (e.g., "SPY", "QQQ")
+
+**Response**:
+
+```json
+{
+  "data": {
+    "symbol": "SPY",
+    "gamma_levels": [
+      {
+        "strike": 445,
+        "call_gamma": 1250000,
+        "put_gamma": 850000,
+        "net_gamma": 400000
+      },
+      {
+        "strike": 450,
+        "call_gamma": 2850000,
+        "put_gamma": 1920000,
+        "net_gamma": 930000
+      }
+    ],
+    "gamma_walls": [
+      {
+        "strike": 450,
+        "call_gamma": 2850000,
+        "put_gamma": 1920000,
+        "net_gamma": 930000,
+        "type": "resistance",
+        "strength": 3.2
+      },
+      {
+        "strike": 440,
+        "call_gamma": 980000,
+        "put_gamma": 2150000,
+        "net_gamma": -1170000,
+        "type": "support",
+        "strength": 2.8
+      }
+    ],
+    "total_call_gamma": 15280000,
+    "total_put_gamma": 12450000,
+    "net_gamma": 2830000
+  }
+}
+```
+
+**Interpretation**:
+- **Positive net_gamma**: Resistance level (dealers will hedge by selling)
+- **Negative net_gamma**: Support level (dealers will hedge by buying)
+- **Strength**: Multiplier vs average gamma (higher = stronger wall)
+
+**Tier Requirements**:
+- Free: Not available
+- Pro: SPY, QQQ only
+- Premium: Any symbol, unlimited
+- Enterprise: Advanced analytics included
+
+**Note**: Gamma calculations use simplified estimation. Production implementation should use Black-Scholes model for accurate results.
+
+---
+
 ## Support
 
 - Documentation: https://github.com/jetgause/PulseEngine

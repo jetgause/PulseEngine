@@ -53,10 +53,16 @@
 - **Broker Operations**:
   - `POST /broker-order` - Submit trade orders with auth + validation
 
+- **Market Data Endpoints**:
+  - `GET /market-data/quotes?symbols=AAPL,TSLA` - Real-time stock quotes (Alpaca)
+  - `GET /market-data/options-chain?symbol=SPY&expiration=2024-12-15` - Options chain data (Tradier)
+  - `GET /market-data/gamma-exposure?symbol=SPY` - Gamma exposure calculations with walls
+
 **Why These Functions on Edge?**
 - **Auth**: Low latency for authentication checks
 - **Payment Webhook**: External service requirement (Stripe callbacks)
 - **Broker Orders**: Real-time trading requires fast response
+- **Market Data**: Low-latency quotes and options data with tier-based rate limiting
 - Stateless operations with minimal processing
 - Critical path optimization
 - Cost-effective for high-frequency operations
@@ -146,6 +152,24 @@
 4. Worker verifies signature
 5. Worker updates subscription → Supabase
 6. Real-time subscription notifies → Frontend
+```
+
+### Market Data Flow
+```
+1. User requests quotes → Frontend
+2. Frontend calls /market-data/quotes → Edge Function
+3. Edge Function validates JWT and checks tier limits
+4. Edge Function fetches from Alpaca/Tradier API
+5. Edge Function increments usage counter → Supabase
+6. Real-time data returned → Frontend
+7. Frontend caches quotes for 1-15 minutes (based on tier)
+
+For Gamma Exposure:
+1. User requests gamma data → Frontend
+2. Edge Function fetches options chain → Tradier
+3. Edge Function calculates gamma levels and walls
+4. Returns analysis with strike prices and exposure
+5. Frontend visualizes gamma walls on charts
 ```
 
 ## Deployment Architecture
