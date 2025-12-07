@@ -55,6 +55,8 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.4.0",
 ]
+# Note: 'all' explicitly lists dependencies to avoid circular references
+# When updating dependency versions, remember to update them here as well
 all = [
     "supabase>=2.0.0",
     "fastapi>=0.100.0",
