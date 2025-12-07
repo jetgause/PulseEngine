@@ -708,6 +708,108 @@ GET /market-data/gamma-exposure?symbol=SPY
 
 ---
 
+## Discord Alerts
+
+### Send Discord Alert
+
+Send trading alerts to user's configured Discord webhook.
+
+**Endpoint**: `POST /discord-alert`
+
+**Authentication**: Service role key (internal use only)
+
+**Request Body**:
+```typescript
+// Trade Signal Alert
+{
+  userId: "uuid",
+  alertType: "trade_signal",
+  data: {
+    signal_type: "BUY" | "SELL",
+    symbol: "AAPL",
+    description: "Strong bullish momentum",
+    entry_price: 175.50,
+    stop_loss: 170.00,
+    target: 185.00,
+    confidence: 85
+  }
+}
+
+// Order Executed Alert
+{
+  userId: "uuid",
+  alertType: "order_executed",
+  data: {
+    order_id: "abc123",
+    symbol: "TSLA",
+    action: "buy" | "sell",
+    quantity: 10,
+    price: 245.75,
+    order_type: "market",
+    broker: "alpaca"
+  }
+}
+
+// Price Alert
+{
+  userId: "uuid",
+  alertType: "price_alert",
+  data: {
+    symbol: "SPY",
+    current_price: 450.25,
+    trigger_price: 450.00,
+    condition: "above" | "below"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Alert sent to Discord"
+}
+```
+
+**Error Responses**:
+- `400`: No Discord webhook configured or integration disabled
+- `400`: Validation error (Zod schema)
+- `500`: Discord webhook failed or internal error
+
+**Example Usage**:
+```typescript
+// Send trade signal alert (called from worker or edge function)
+const response = await fetch('http://localhost:54321/functions/v1/discord-alert', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    userId: 'user-uuid',
+    alertType: 'trade_signal',
+    data: {
+      signal_type: 'BUY',
+      symbol: 'AAPL',
+      description: 'Breakout above resistance',
+      entry_price: 175.50,
+      stop_loss: 170.00,
+      target: 185.00,
+      confidence: 85
+    }
+  })
+})
+```
+
+**Notes**:
+- User must have Discord integration enabled with valid webhook URL
+- Embeds are color-coded: green (buy signals), red (sell signals), blue (buy orders), orange (price alerts)
+- All alerts are logged in the `alerts` table
+- This endpoint is for internal/worker use only (requires service role key)
+- Called automatically by workers or can be triggered by other edge functions
+
+---
+
 ## Support
 
 - Documentation: https://github.com/jetgause/PulseEngine

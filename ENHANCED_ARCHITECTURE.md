@@ -66,11 +66,18 @@
   - `GET /market-data/options-chain?symbol=SPY&expiration=2024-12-15` - Options chain data (Tradier)
   - `GET /market-data/gamma-exposure?symbol=SPY` - Gamma exposure calculations with walls
 
+- **Discord Alerts**:
+  - `POST /discord-alert` - Send trade alerts to user's Discord webhook (internal use)
+  - Alert types: trade signals, order executions, price alerts
+  - Color-coded embeds with rich data fields
+  - Automatic logging to alerts table
+
 **Why These Functions on Edge?**
 - **Auth**: Low latency for authentication checks
 - **Payment Webhook**: External service requirement (Stripe callbacks)
 - **Broker Orders**: Real-time trading requires fast response
 - **Market Data**: Low-latency quotes and options data with tier-based rate limiting
+- **Discord Alerts**: Immediate notification delivery with minimal latency
 - Stateless operations with minimal processing
 - Critical path optimization
 - Cost-effective for high-frequency operations
