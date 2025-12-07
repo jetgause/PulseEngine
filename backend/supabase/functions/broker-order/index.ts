@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
+import { createOAuth2Manager } from '../../shared/lib/oauth2-manager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173',
@@ -66,20 +67,9 @@ serve(async (req) => {
       }
     }
 
-    // Get user's broker connection (with credentials)
-    const { data: brokerConnections, error: credError } = await supabase
-      .from('user_broker_connections')
-      .select('id, api_key_encrypted, api_secret_encrypted, account_type, brokers(slug)')
-      .eq('user_id', user.id)
-      .eq('brokers.slug', order.broker)
-      .eq('status', 'active')
-      .limit(1)
-
-    if (credError || !brokerConnections || brokerConnections.length === 0) {
-      throw new Error(`No active ${order.broker} connection found`)
-    }
-
-    const credentials = brokerConnections[0]
+    // Get valid OAuth2 credentials (auto-refreshes if needed)
+    const oauth2Manager = createOAuth2Manager(order.broker)
+    const credentials = await oauth2Manager.getValidCredentials(user.id)
 
     // Submit order to broker
     let result
@@ -103,12 +93,21 @@ serve(async (req) => {
         throw new Error(`Broker ${order.broker} not implemented yet`)
     }
 
+    // Get broker connection ID for the order record
+    const { data: connection } = await supabase
+      .from('user_broker_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('broker_name', order.broker)
+      .eq('is_active', true)
+      .single()
+
     // Store order in database
     const { data: orderRecord, error: insertError } = await supabase
       .from('orders')
       .insert({
         user_id: user.id,
-        broker_connection_id: credentials.id,
+        broker_connection_id: connection?.id,
         broker_order_id: result.orderId,
         symbol: order.symbol,
         side: order.action,
@@ -150,25 +149,10 @@ serve(async (req) => {
   }
 })
 
-// Helper: Decrypt credentials (placeholder - implement actual decryption)
-function decryptCredential(encryptedValue: string): string {
-  // TODO: Implement actual decryption using Supabase Vault or encryption key
-  // For now, assume credentials are stored in plaintext (NOT PRODUCTION READY)
-  // In production, use: https://supabase.com/docs/guides/database/vault
-  console.warn('WARNING: Credentials are not encrypted. Implement decryption before production!')
-  return encryptedValue
-}
-
-// Alpaca integration
+// Alpaca integration (using OAuth2 credentials)
 async function submitAlpacaOrder(credentials: any, order: any) {
-  // Determine if using paper or live API
-  const baseUrl = credentials.account_type === 'live' 
-    ? 'https://api.alpaca.markets'
-    : 'https://paper-api.alpaca.markets'
-
-  // Decrypt credentials before use
-  const apiKey = decryptCredential(credentials.api_key_encrypted)
-  const apiSecret = decryptCredential(credentials.api_secret_encrypted)
+  // Use production API (OAuth2 credentials are for live accounts)
+  const baseUrl = 'https://api.alpaca.markets'
 
   // Build request body, only include limit_price for limit orders
   const requestBody: any = {
@@ -186,8 +170,7 @@ async function submitAlpacaOrder(credentials: any, order: any) {
   const response = await fetch(`${baseUrl}/v2/orders`, {
     method: 'POST',
     headers: {
-      'APCA-API-KEY-ID': apiKey,
-      'APCA-API-SECRET-KEY': apiSecret,
+      'Authorization': `Bearer ${credentials.access_token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(requestBody),

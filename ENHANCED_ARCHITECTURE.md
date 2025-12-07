@@ -13,11 +13,12 @@
                     HTTPS/WebSocket
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Edge Functions (Auth Only)                      │
+│              Edge Functions (Auth + Critical Ops)            │
 │  • Authentication & Authorization                            │
-│  • Token validation & refresh                                │
-│  • Session management                                        │
-│  • User registration & login                                 │
+│  • Broker OAuth2 Management                                  │
+│  • Real-time Trading Orders                                  │
+│  • Market Data & Analytics                                   │
+│  • Payment Webhooks                                          │
 └─────────────────────────────────────────────────────────────┘
                             │
                 ┌───────────┴───────────┐
@@ -46,6 +47,13 @@
   - `POST /auth/oauth` - Google OAuth authentication
   - `POST /auth/refresh` - Token refresh
   - `POST /auth/logout` - Session termination
+
+- **Broker OAuth2 Management**:
+  - `POST /broker-oauth/initiate` - Start OAuth2 flow, returns authorization URL
+  - `POST /broker-oauth/callback` - Exchange code for tokens, stores credentials
+  - `POST /broker-oauth/disconnect` - Revoke broker access
+  - `GET /broker-oauth/status` - List active broker connections
+  - **Automatic Token Refresh**: Tokens refreshed automatically before expiry
 
 - **Payment Webhook**:
   - `POST /payment-webhook` - Stripe webhook handler (signature verification)
