@@ -1,0 +1,15 @@
+# Backend dependencies and build artifacts
+node_modules/
+.env
+.env.local
+*.log
+dist/
+build/
+
+# Supabase local
+.branches/
+.temp/
+
+# OS files
+.DS_Store
+Thumbs.db
