@@ -1,0 +1,93 @@
+.paper-trading {
+  animation: fadeIn 0.5s;
+}
+
+.trading-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.portfolio-details {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.portfolio-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-color);
+  border-radius: 6px;
+}
+
+.portfolio-stat span:first-child {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.portfolio-stat span:last-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.order-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.positions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.positions-table thead {
+  background-color: var(--bg-color);
+}
+
+.positions-table th,
+.positions-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.positions-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.positions-table tbody tr:hover {
+  background-color: var(--bg-color);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 968px) {
+  .trading-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .positions-table {
+    font-size: 0.9rem;
+  }
+  
+  .positions-table th,
+  .positions-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
