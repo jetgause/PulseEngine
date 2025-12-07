@@ -1,0 +1,48 @@
+diff --git a/backend/supabase/functions/auth/index.ts b/backend/supabase/functions/auth/index.ts
+index 0000000..1111111 100644
+--- a/backend/supabase/functions/auth/index.ts
++++ b/backend/supabase/functions/auth/index.ts
+@@ -76,18 +76,26 @@ serve(async (req) => {
+       if (error) throw error
+ 
+       // Create user profile with service role (with error handling)
+       const supabaseAdmin = createClient(
+         Deno.env.get('SUPABASE_URL') ?? '',
+         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+       )
+ 
+-      const { error: profileError } = await supabaseAdmin.from('profiles').insert({
++      const { data: profile, error: profileError } = await supabaseAdmin
++        .from('profiles')
++        .insert({
+         id: data.user?.id,
+         email: validated.email,
+         full_name: validated.metadata?.full_name,
+         tier: 'free', // Default tier
+         credits: 100, // Starter credits
+       })
++        .select()
++        .single()
+ 
+       if (profileError) {
+-        console.error('Failed to create profile:', profileError)
+-        // Profile creation is handled by trigger as fallback
++        console.error('❌ Failed to create profile:', profileError)
++        
++        // Profile creation is MANDATORY - rollback auth if fails
++        await supabaseAdmin.auth.admin.deleteUser(data.user!.id)
++        
++        throw new Error(
++          'Failed to create user profile. Please try again or contact support.'
++        )
+       }
++      
++      console.log('✅ Profile created successfully:', profile.id)
+ 
+       return new Response(
+         JSON.stringify({ 
+           user: data.user, 
+           session: data.session,
++          profile: profile,
+           message: 'Check your email to confirm' 
+         }),

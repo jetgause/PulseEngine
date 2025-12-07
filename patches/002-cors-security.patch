@@ -1,0 +1,50 @@
+diff --git a/backend/supabase/functions/auth/index.ts b/backend/supabase/functions/auth/index.ts
+index 0000000..1111111 100644
+--- a/backend/supabase/functions/auth/index.ts
++++ b/backend/supabase/functions/auth/index.ts
+@@ -3,9 +3,37 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+ import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
+ 
++// Validate FRONTEND_URL is set and not wildcard
++const FRONTEND_URL = Deno.env.get('FRONTEND_URL')
++if (!FRONTEND_URL || FRONTEND_URL === '*') {
++  throw new Error('FRONTEND_URL must be set to a specific origin (not wildcard)')
++}
++
++// Allowed origins list (can be comma-separated for multiple environments)
++const ALLOWED_ORIGINS = FRONTEND_URL.split(',').map(url => url.trim())
++
++function validateOrigin(origin: string | null): string {
++  if (!origin) {
++    return ALLOWED_ORIGINS[0]
++  }
++  
++  if (ALLOWED_ORIGINS.includes(origin)) {
++    return origin
++  }
++  
++  // Reject unknown origins
++  return ALLOWED_ORIGINS[0]
++}
++
++function getCorsHeaders(origin: string | null): Record<string, string> {
++  return {
++    'Access-Control-Allow-Origin': validateOrigin(origin),
++    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
++    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
++    'Access-Control-Allow-Credentials': 'true',
++  }
++}
++
+-const corsHeaders = {
+-  'Access-Control-Allow-Origin': Deno.env.get('FRONTEND_URL') ?? '*',
+-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+-}
+ 
+ serve(async (req) => {
++  const origin = req.headers.get('origin')
++  const corsHeaders = getCorsHeaders(origin)
++  
+   // Handle CORS preflight
+   if (req.method === 'OPTIONS') {

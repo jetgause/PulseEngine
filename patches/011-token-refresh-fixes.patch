@@ -1,0 +1,118 @@
+diff --git a/backend/shared/lib/universal-oauth2-manager.ts b/backend/shared/lib/universal-oauth2-manager.ts
+index 0000000..1111111 100644
+--- a/backend/shared/lib/universal-oauth2-manager.ts
++++ b/backend/shared/lib/universal-oauth2-manager.ts
+@@ -1,3 +1,4 @@
++import { fetchWithRetry } from './timeout-fetch.ts'
+ 
+ export class UniversalOAuth2Manager {
+   // ... existing code ...
+   
++  /**
++   * Refresh access token with retry logic and proper error handling
++   */
+   async refreshAccessToken(userId: string, refreshToken: string): Promise<string> {
++    const maxRetries = 3
++    let lastError: Error
++    
++    for (let attempt = 0; attempt < maxRetries; attempt++) {
++      try {
++        return await this.attemptTokenRefresh(userId, refreshToken)
++      } catch (error) {
++        lastError = error as Error
++        console.warn(`Token refresh attempt ${attempt + 1} failed:`, error.message)
++        
++        // Don't retry on 4xx errors (client errors)
++        if (error.message.includes('400') || error.message.includes('401')) {
++          break
++        }
++        
++        // Wait before retry (exponential backoff)
++        if (attempt < maxRetries - 1) {
++          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
++        }
++      }
++    }
++    
++    // All retries failed
++    console.error(`Token refresh failed after ${maxRetries} attempts for user ${userId}`)
++    
++    // Clean up failed credentials
++    await this.removeCredentials(userId)
++    
++    throw new Error(
++      `Token refresh failed. Please re-authorize your ${this.config.name} account.`
++    )
++  }
++  
++  private async attemptTokenRefresh(userId: string, refreshToken: string): Promise<string> {
+     const params = new URLSearchParams({
+       grant_type: 'refresh_token',
+       refresh_token: refreshToken,
+       client_id: this.config.clientId,
+       client_secret: this.config.clientSecret,
+     })
+ 
+-    const response = await fetch(this.config.tokenUrl, {
++    const response = await fetchWithRetry(
++      this.config.tokenUrl,
++      {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/x-www-form-urlencoded',
+         ...this.config.customHeaders,
+       },
+       body: params.toString(),
+-    })
++      },
++      2, // max retries
++      10000 // 10 second timeout
++    )
+ 
+     if (!response.ok) {
+       const errorText = await response.text()
+-      throw new Error(`Token refresh failed: ${errorText}`)
++      throw new Error(`Token refresh failed (${response.status}): ${errorText}`)
+     }
+ 
+     const data = await response.json()
+-    
++    const newAccessToken = data.access_token
++    const newRefreshToken = data.refresh_token || refreshToken
++    
+     // Update stored credentials
+-    // ... existing update code ...
++    const expiresAt = new Date(Date.now() + (data.expires_in * 1000))
++    
++    await this.supabase
++      .from('user_broker_connections')
++      .update({
++        access_token: newAccessToken,
++        refresh_token: newRefreshToken,
++        expires_at: expiresAt.toISOString(),
++        updated_at: new Date().toISOString(),
++      })
++      .eq('user_id', userId)
++      .eq('broker', this.config.name.toLowerCase())
+     
+-    return data.access_token
++    return newAccessToken
++  }
++  
++  /**
++   * Remove credentials when refresh fails permanently
++   */
++  private async removeCredentials(userId: string): Promise<void> {
++    try {
++      await this.supabase
++        .from('user_broker_connections')
++        .delete()
++        .eq('user_id', userId)
++        .eq('broker', this.config.name.toLowerCase())
++      
++      console.log(`Removed failed credentials for user ${userId}, broker ${this.config.name}`)
++    } catch (error) {
++      console.error('Failed to remove credentials:', error)
++    }
+   }
+ }

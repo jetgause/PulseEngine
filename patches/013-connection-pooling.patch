@@ -1,0 +1,145 @@
+diff --git a/backend/shared/lib/connection-pool.ts b/backend/shared/lib/connection-pool.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/backend/shared/lib/connection-pool.ts
+@@ -0,0 +1,92 @@
++/**
++ * Connection Pool Manager
++ * Prevents connection pool exhaustion under load
++ */
++
++import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
++
++interface PoolConfig {
++  maxConnections: number
++  idleTimeout: number // ms
++  acquireTimeout: number // ms
++}
++
++class ConnectionPool {
++  private pool: SupabaseClient[] = []
++  private inUse = new Set<SupabaseClient>()
++  private waiting: Array<(client: SupabaseClient) => void> = []
++  private lastUsed = new Map<SupabaseClient, number>()
++  
++  constructor(
++    private url: string,
++    private key: string,
++    private config: PoolConfig = {
++      maxConnections: 10,
++      idleTimeout: 30000, // 30 seconds
++      acquireTimeout: 5000, // 5 seconds
++    }
++  ) {
++    // Cleanup idle connections periodically
++    setInterval(() => this.cleanupIdle(), this.config.idleTimeout / 2)
++  }
++
++  /**
++   * Acquire a connection from the pool
++   */
++  async acquire(): Promise<SupabaseClient> {
++    // Try to get idle connection
++    for (const client of this.pool) {
++      if (!this.inUse.has(client)) {
++        this.inUse.add(client)
++        this.lastUsed.set(client, Date.now())
++        return client
++      }
++    }
++
++    // Create new connection if under limit
++    if (this.pool.length < this.config.maxConnections) {
++      const client = createClient(this.url, this.key, {
++        auth: { persistSession: false },
++      })
++      this.pool.push(client)
++      this.inUse.add(client)
++      this.lastUsed.set(client, Date.now())
++      return client
++    }
++
++    // Wait for available connection
++    return new Promise((resolve, reject) => {
++      const timeout = setTimeout(() => {
++        const index = this.waiting.indexOf(resolve)
++        if (index > -1) {
++          this.waiting.splice(index, 1)
++        }
++        reject(new Error('Connection acquire timeout'))
++      }, this.config.acquireTimeout)
++
++      this.waiting.push((client) => {
++        clearTimeout(timeout)
++        resolve(client)
++      })
++    })
++  }
++
++  /**
++   * Release connection back to pool
++   */
++  release(client: SupabaseClient): void {
++    this.inUse.delete(client)
++    this.lastUsed.set(client, Date.now())
++
++    // Give to waiting request if any
++    const waiter = this.waiting.shift()
++    if (waiter) {
++      this.inUse.add(client)
++      waiter(client)
++    }
++  }
++
++  /**
++   * Clean up idle connections
++   */
++  private cleanupIdle(): void {
++    const now = Date.now()
++    for (const [client, lastUsed] of this.lastUsed.entries()) {
++      if (!this.inUse.has(client) && now - lastUsed > this.config.idleTimeout) {
++        const index = this.pool.indexOf(client)
++        if (index > -1) {
++          this.pool.splice(index, 1)
++          this.lastUsed.delete(client)
++        }
++      }
++    }
++  }
++
++  getStats() {
++    return {
++      total: this.pool.length,
++      inUse: this.inUse.size,
++      waiting: this.waiting.length,
++    }
++  }
++}
++
++// Singleton pools for different access levels
++export const anonPool = new ConnectionPool(
++  Deno.env.get('SUPABASE_URL') || '',
++  Deno.env.get('SUPABASE_ANON_KEY') || '',
++)
++
++export const servicePool = new ConnectionPool(
++  Deno.env.get('SUPABASE_URL') || '',
++  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
++  { maxConnections: 5, idleTimeout: 60000, acquireTimeout: 10000 }
++)
++
++/**
++ * Use connection from pool with automatic release
++ */
++export async function withConnection<T>(
++  pool: ConnectionPool,
++  fn: (client: SupabaseClient) => Promise<T>
++): Promise<T> {
++  const client = await pool.acquire()
++  try {
++    return await fn(client)
++  } finally {
++    pool.release(client)
++  }
++}

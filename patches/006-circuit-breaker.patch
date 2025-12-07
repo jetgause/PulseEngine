@@ -1,0 +1,142 @@
+diff --git a/backend/shared/lib/circuit-breaker.ts b/backend/shared/lib/circuit-breaker.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/backend/shared/lib/circuit-breaker.ts
+@@ -0,0 +1,128 @@
++/**
++ * Circuit Breaker Pattern Implementation
++ * Prevents cascading failures when external APIs are down
++ */
++
++type CircuitState = 'closed' | 'open' | 'half-open'
++
++interface CircuitBreakerConfig {
++  failureThreshold: number // Number of failures before opening
++  successThreshold: number // Number of successes to close from half-open
++  timeout: number // Time in ms before attempting to close
++  monitoringPeriod: number // Time window for tracking failures
++}
++
++interface CircuitStats {
++  failures: number
++  successes: number
++  lastFailureTime: number
++  lastSuccessTime: number
++  totalRequests: number
++  totalFailures: number
++}
++
++export class CircuitBreaker {
++  private state: CircuitState = 'closed'
++  private stats: CircuitStats = {
++    failures: 0,
++    successes: 0,
++    lastFailureTime: 0,
++    lastSuccessTime: 0,
++    totalRequests: 0,
++    totalFailures: 0,
++  }
++  private nextAttempt: number = 0
++  
++  constructor(
++    private name: string,
++    private config: CircuitBreakerConfig = {
++      failureThreshold: 5,
++      successThreshold: 2,
++      timeout: 60000, // 1 minute
++      monitoringPeriod: 120000, // 2 minutes
++    }
++  ) {}
++
++  /**
++   * Execute function with circuit breaker protection
++   */
++  async execute<T>(fn: () => Promise<T>, fallback?: () => T): Promise<T> {
++    // Check if circuit is open
++    if (this.state === 'open') {
++      const now = Date.now()
++      
++      if (now < this.nextAttempt) {
++        console.warn(`⚠️  Circuit breaker [${this.name}] is OPEN. Using fallback.`)
++        
++        if (fallback) {
++          return fallback()
++        }
++        
++        throw new Error(`Circuit breaker [${this.name}] is open. Service unavailable.`)
++      }
++      
++      // Try to transition to half-open
++      this.state = 'half-open'
++      this.stats.successes = 0
++      console.log(`🔄 Circuit breaker [${this.name}] transitioning to HALF-OPEN`)
++    }
++
++    this.stats.totalRequests++
++    
++    try {
++      const result = await fn()
++      this.onSuccess()
++      return result
++    } catch (error) {
++      this.onFailure()
++      
++      if (fallback) {
++        console.warn(`Using fallback for [${this.name}]:`, error.message)
++        return fallback()
++      }
++      
++      throw error
++    }
++  }
++
++  private onSuccess(): void {
++    this.stats.failures = 0
++    this.stats.successes++
++    this.stats.lastSuccessTime = Date.now()
++
++    if (this.state === 'half-open') {
++      if (this.stats.successes >= this.config.successThreshold) {
++        this.state = 'closed'
++        console.log(`✅ Circuit breaker [${this.name}] is now CLOSED`)
++      }
++    }
++  }
++
++  private onFailure(): void {
++    this.stats.failures++
++    this.stats.totalFailures++
++    this.stats.lastFailureTime = Date.now()
++
++    if (this.state === 'half-open') {
++      // Failed during half-open, go back to open
++      this.open()
++    } else if (this.stats.failures >= this.config.failureThreshold) {
++      this.open()
++    }
++  }
++
++  private open(): void {
++    this.state = 'open'
++    this.nextAttempt = Date.now() + this.config.timeout
++    console.error(`🔴 Circuit breaker [${this.name}] is now OPEN until ${new Date(this.nextAttempt).toISOString()}`)
++  }
++
++  getState(): CircuitState {
++    return this.state
++  }
++
++  getStats(): CircuitStats {
++    return { ...this.stats }
++  }
++}
++
++// Pre-configured circuit breakers for external services
++export const brokerCircuitBreakers = {
++  alpaca: new CircuitBreaker('Alpaca', { failureThreshold: 3, timeout: 30000 }),
++  ibkr: new CircuitBreaker('IBKR', { failureThreshold: 3, timeout: 30000 }),
++  tradier: new CircuitBreaker('Tradier', { failureThreshold: 3, timeout: 30000 }),
++  td: new CircuitBreaker('TD Ameritrade', { failureThreshold: 3, timeout: 30000 }),
++  schwab: new CircuitBreaker('Schwab', { failureThreshold: 3, timeout: 30000 }),
++}

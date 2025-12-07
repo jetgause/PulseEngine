@@ -1,0 +1,121 @@
+diff --git a/backend/supabase/functions/payment/index.ts b/backend/supabase/functions/payment/index.ts
+index 0000000..1111111 100644
+--- a/backend/supabase/functions/payment/index.ts
++++ b/backend/supabase/functions/payment/index.ts
+@@ -1,6 +1,7 @@
+ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+ import Stripe from 'https://esm.sh/stripe@14.0.0'
++import { ethers } from 'https://esm.sh/ethers@6.9.0'
+ 
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': '*',
+@@ -200,22 +201,94 @@ async function processCryptoPayment(
+   userId: string,
+   txHash: string
+ ): Promise<void> {
+-  // Placeholder - needs implementation
+-  // TODO: Implement actual blockchain verification using ethers.js
+-  // 1. Connect to Ethereum node (Infura/Alchemy)
+-  // 2. Verify transaction exists
+-  // 3. Check transaction confirmations (recommended: 6+)
+-  // 4. Verify recipient address matches our wallet
+-  // 5. Verify amount matches expected payment
+-  
+-  throw new Error(
+-    'Crypto payment verification not implemented. ' +
+-    'This is a security vulnerability - DO NOT enable crypto payments until implemented.'
++  console.log(`Verifying crypto payment: ${txHash}`)
++  
++  // Get configuration
++  const rpcUrl = Deno.env.get('ETHEREUM_RPC_URL')
++  const expectedAddress = Deno.env.get('PAYMENT_WALLET_ADDRESS')
++  const requiredConfirmations = parseInt(Deno.env.get('REQUIRED_CONFIRMATIONS') || '6')
++  
++  if (!rpcUrl || !expectedAddress) {
++    throw new Error('Crypto payment configuration missing')
++  }
++  
++  try {
++    // Connect to Ethereum network
++    const provider = new ethers.JsonRpcProvider(rpcUrl)
++    
++    // Get transaction receipt
++    const receipt = await provider.getTransactionReceipt(txHash)
++    
++    if (!receipt) {
++      throw new Error('Transaction not found')
++    }
++    
++    // Check if transaction succeeded
++    if (receipt.status !== 1) {
++      throw new Error('Transaction failed on blockchain')
++    }
++    
++    // Verify recipient address
++    if (receipt.to?.toLowerCase() !== expectedAddress.toLowerCase()) {
++      throw new Error('Payment sent to wrong address')
++    }
++    
++    // Get current block number
++    const currentBlock = await provider.getBlockNumber()
++    const confirmations = currentBlock - receipt.blockNumber
++    
++    // Check confirmations
++    if (confirmations < requiredConfirmations) {
++      throw new Error(
++        `Insufficient confirmations: ${confirmations}/${requiredConfirmations}`
++      )
++    }
++    
++    // Get transaction details
++    const tx = await provider.getTransaction(txHash)
++    
++    if (!tx) {
++      throw new Error('Transaction details not found')
++    }
++    
++    // Parse amount (convert from wei to ether)
++    const amountEth = parseFloat(ethers.formatEther(tx.value))
++    
++    // Verify amount meets minimum (example: 0.01 ETH)
++    const minAmount = parseFloat(Deno.env.get('MIN_CRYPTO_PAYMENT') || '0.01')
++    if (amountEth < minAmount) {
++      throw new Error(`Payment amount too low: ${amountEth} ETH (minimum: ${minAmount} ETH)`)
++    }
++    
++    // Check if transaction already processed
++    const { data: existing } = await supabase
++      .from('payments')
++      .select('id')
++      .eq('transaction_hash', txHash)
++      .single()
++    
++    if (existing) {
++      throw new Error('Transaction already processed')
++    }
++    
++    // Record payment
++    const { error: paymentError } = await supabase
++      .from('payments')
++      .insert({
++        user_id: userId,
++        amount: amountEth,
++        currency: 'ETH',
++        status: 'completed',
++        transaction_hash: txHash,
++        confirmations: confirmations,
++        created_at: new Date().toISOString(),
++      })
++    
++    if (paymentError) {
++      throw new Error(`Failed to record payment: ${paymentError.message}`)
++    }
++    
++    console.log(`✅ Crypto payment verified: ${txHash}, amount: ${amountEth} ETH`)
++    
++  } catch (error) {
++    console.error('❌ Crypto payment verification failed:', error)
++    throw error
++  }
+ }

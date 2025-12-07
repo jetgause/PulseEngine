@@ -1,0 +1,157 @@
+diff --git a/backend/supabase/functions/broker-order/index.ts b/backend/supabase/functions/broker-order/index.ts
+index 0000000..1111111 100644
+--- a/backend/supabase/functions/broker-order/index.ts
++++ b/backend/supabase/functions/broker-order/index.ts
+@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+ import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
+ import { createOAuth2Manager } from '../../shared/lib/oauth2-manager.ts'
++import { fetchWithTimeout } from '../../shared/lib/timeout-fetch.ts'
++import { brokerCircuitBreakers } from '../../shared/lib/circuit-breaker.ts'
+ 
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173',
+@@ -67,19 +68,62 @@ serve(async (req) => {
+       )
+     }
+ 
++    // Create order hash for idempotency
++    const orderHash = JSON.stringify({
++      broker: order.broker,
++      symbol: order.symbol,
++      action: order.action,
++      qty: order.qty,
++    })
++    
++    // Persist order in "pending" state BEFORE submitting to broker
++    const { data: orderRecord, error: insertError } = await supabase
++      .from('orders')
++      .insert({
++        user_id: user.id,
++        broker: order.broker,
++        symbol: order.symbol,
++        action: order.action,
++        qty: order.qty,
++        order_type: order.order_type,
++        limit_price: order.limit_price,
++        time_in_force: order.time_in_force,
++        status: 'pending',
++        idempotency_key: idempotencyKey,
++        order_hash: orderHash,
++        created_at: new Date().toISOString(),
++      })
++      .select()
++      .single()
++    
++    if (insertError) {
++      console.error('Failed to persist order:', insertError)
++      return new Response(
++        JSON.stringify({ 
++          error: 'Failed to create order record',
++          details: insertError.message
++        }),
++        { 
++          status: 500,
++          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
++        }
++      )
++    }
++    
+     // Get valid OAuth2 credentials (auto-refreshes if needed)
+-    // IBKR uses session-based auth, so we pass user context differently
+     let credentials
+     if (order.broker === 'ibkr') {
+       credentials = { user_id: user.id }
+     } else {
+       const oauth2Manager = createOAuth2Manager(order.broker)
+       credentials = await oauth2Manager.getValidCredentials(user.id)
+     }
+ 
+-    // Submit order to broker
++    // Submit order to broker with circuit breaker protection
+     let result
+-    switch (order.broker) {
++    const circuitBreaker = brokerCircuitBreakers[order.broker]
++    
++    try {
++      result = await circuitBreaker.execute(async () => {
++        return await submitOrderToBroker(order.broker, credentials, order)
++      })
++    } catch (error) {
++      // Update order status to failed
++      await supabase
++        .from('orders')
++        .update({ 
++          status: 'failed',
++          error_message: error.message,
++          updated_at: new Date().toISOString(),
++        })
++        .eq('id', orderRecord.id)
++      
++      throw error
++    }
++    
++    // Update order with broker response
++    await supabase
++      .from('orders')
++      .update({
++        status: result.status || 'submitted',
++        broker_order_id: result.id,
++        filled_qty: result.filled_qty || 0,
++        avg_fill_price: result.avg_fill_price,
++        updated_at: new Date().toISOString(),
++      })
++      .eq('id', orderRecord.id)
++    
++    return new Response(
++      JSON.stringify({ 
++        data: {
++          ...result,
++          order_id: orderRecord.id,
++        }
++      }),
++      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
++    )
++  } catch (error) {
++    console.error('Order submission error:', error)
++    return new Response(
++      JSON.stringify({ error: error.message || 'Order submission failed' }),
++      { 
++        status: 500,
++        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
++      }
++    )
++  }
++})
++
++/**
++ * Submit order to broker with timeout
++ */
++async function submitOrderToBroker(broker: string, credentials: any, order: any): Promise<any> {
++  switch (broker) {
+       case 'alpaca':
+-        result = await submitAlpacaOrder(credentials, order)
+-        break
++      return await submitAlpacaOrder(credentials, order)
+       case 'ibkr':
+-        result = await submitIBKROrder(credentials, order)
+-        break
++      return await submitIBKROrder(credentials, order)
+       case 'tradier':
+-        result = await submitTradierOrder(credentials, order)
+-        break
++      return await submitTradierOrder(credentials, order)
+       case 'td':
+-        result = await submitTDOrder(credentials, order)
+-        break
++      return await submitTDOrder(credentials, order)
+       case 'schwab':
+-        result = await submitSchwabOrder(credentials, order)
+-        break
++      return await submitSchwabOrder(credentials, order)
+       default:
+-        throw new Error(`Broker ${order.broker} not implemented yet`)
+-    }
++      throw new Error(`Broker ${broker} not implemented`)
++  }
++}

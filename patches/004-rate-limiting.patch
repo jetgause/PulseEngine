@@ -1,0 +1,96 @@
+diff --git a/backend/shared/lib/rate-limiter.ts b/backend/shared/lib/rate-limiter.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/backend/shared/lib/rate-limiter.ts
+@@ -0,0 +1,89 @@
++/**
++ * Rate Limiter for Edge Functions
++ * Prevents brute force and DDoS attacks
++ */
++
++interface RateLimitEntry {
++  count: number
++  resetAt: number
++  blocked: boolean
++  blockUntil?: number
++}
++
++class RateLimiter {
++  private store = new Map<string, RateLimitEntry>()
++  private cleanupInterval: number
++
++  constructor() {
++    // Cleanup expired entries every 5 minutes
++    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000)
++  }
++
++  private cleanup(): void {
++    const now = Date.now()
++    for (const [key, entry] of this.store.entries()) {
++      if (entry.resetAt < now && (!entry.blocked || (entry.blockUntil && entry.blockUntil < now))) {
++        this.store.delete(key)
++      }
++    }
++  }
++
++  /**
++   * Check if request should be rate limited
++   * @param key Unique identifier (e.g., IP, email, userId)
++   * @param maxRequests Maximum requests allowed
++   * @param windowMs Time window in milliseconds
++   * @param blockDurationMs How long to block after exceeding limit
++   * @returns true if rate limit exceeded
++   */
++  isRateLimited(
++    key: string,
++    maxRequests: number = 10,
++    windowMs: number = 60000, // 1 minute
++    blockDurationMs: number = 300000 // 5 minutes
++  ): boolean {
++    const now = Date.now()
++    const entry = this.store.get(key)
++
++    // Check if blocked
++    if (entry?.blocked && entry.blockUntil && entry.blockUntil > now) {
++      return true // Still blocked
++    }
++
++    // Reset or create new entry
++    if (!entry || entry.resetAt < now) {
++      this.store.set(key, {
++        count: 1,
++        resetAt: now + windowMs,
++        blocked: false,
++      })
++      return false
++    }
++
++    // Increment counter
++    entry.count++
++
++    // Check if limit exceeded
++    if (entry.count > maxRequests) {
++      entry.blocked = true
++      entry.blockUntil = now + blockDurationMs
++      console.warn(`Rate limit exceeded for key: ${key}`)
++      return true
++    }
++
++    return false
++  }
++
++  /**
++   * Get remaining requests for a key
++   */
++  getRemaining(key: string, maxRequests: number): number {
++    const entry = this.store.get(key)
++    if (!entry || entry.resetAt < Date.now()) {
++      return maxRequests
++    }
++    return Math.max(0, maxRequests - entry.count)
++  }
++}
++
++// Singleton instance
++export const rateLimiter = new RateLimiter()

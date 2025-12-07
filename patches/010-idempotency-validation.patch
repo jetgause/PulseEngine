@@ -1,0 +1,79 @@
+diff --git a/backend/supabase/functions/broker-order/index.ts b/backend/supabase/functions/broker-order/index.ts
+index 0000000..1111111 100644
+--- a/backend/supabase/functions/broker-order/index.ts
++++ b/backend/supabase/functions/broker-order/index.ts
+@@ -46,18 +46,39 @@ serve(async (req) => {
+     if (authError || !user) throw new Error('Unauthorized')
+ 
+     // Validate input
+     const body = await req.json()
+     const order = OrderSchema.parse(body)
+ 
+-    // Check idempotency
++    // Enhanced idempotency validation
+     const idempotencyKey = req.headers.get('Idempotency-Key')
+     if (idempotencyKey) {
++      // Validate idempotency key format (must be UUID)
++      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
++      if (!uuidRegex.test(idempotencyKey)) {
++        return new Response(
++          JSON.stringify({ error: 'Invalid idempotency key format. Must be UUIDv4.' }),
++          { 
++            status: 400,
++            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
++          }
++        )
++      }
++      
++      // Check for existing order with same idempotency key
+       const { data: existing } = await supabase
+         .from('orders')
+         .select('*')
+         .eq('idempotency_key', idempotencyKey)
+         .eq('user_id', user.id)
++        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Only check last 24 hours
+         .single()
+ 
+       if (existing) {
++        // Verify order parameters match (prevent key reuse for different orders)
++        const orderHash = JSON.stringify({
++          broker: order.broker,
++          symbol: order.symbol,
++          action: order.action,
++          qty: order.qty,
++        })
++        
++        if (existing.order_hash !== orderHash) {
++          return new Response(
++            JSON.stringify({ 
++              error: 'Idempotency key reused for different order parameters' 
++            }),
++            { 
++              status: 409,
++              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
++            }
++          )
++        }
++        
+         return new Response(
+-          JSON.stringify({ data: existing, cached: true }),
++          JSON.stringify({ 
++            data: existing, 
++            cached: true,
++            message: 'Returning cached order result'
++          }),
+           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         )
+       }
++    } else {
++      // Require idempotency key for order submissions
++      return new Response(
++        JSON.stringify({ 
++          error: 'Idempotency-Key header is required for order submissions' 
++        }),
++        { 
++          status: 400,
++          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
++        }
++      )
+     }

@@ -1,0 +1,85 @@
+diff --git a/backend/shared/lib/timeout-fetch.ts b/backend/shared/lib/timeout-fetch.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/backend/shared/lib/timeout-fetch.ts
+@@ -0,0 +1,75 @@
++/**
++ * Fetch with Timeout Support
++ * Prevents functions from hanging on slow external APIs
++ */
++
++export class TimeoutError extends Error {
++  constructor(message: string, public timeoutMs: number) {
++    super(message)
++    this.name = 'TimeoutError'
++  }
++}
++
++/**
++ * Fetch with automatic timeout
++ * @param url URL to fetch
++ * @param options Fetch options
++ * @param timeoutMs Timeout in milliseconds (default: 10000)
++ * @returns Fetch response
++ * @throws TimeoutError if request exceeds timeout
++ */
++export async function fetchWithTimeout(
++  url: string | Request | URL,
++  options: RequestInit = {},
++  timeoutMs: number = 10000
++): Promise<Response> {
++  const controller = new AbortController()
++  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
++
++  try {
++    const response = await fetch(url, {
++      ...options,
++      signal: controller.signal,
++    })
++    
++    clearTimeout(timeoutId)
++    return response
++  } catch (error) {
++    clearTimeout(timeoutId)
++    
++    if (error.name === 'AbortError') {
++      throw new TimeoutError(
++        `Request timed out after ${timeoutMs}ms`,
++        timeoutMs
++      )
++    }
++    
++    throw error
++  }
++}
++
++/**
++ * Retry fetch with exponential backoff
++ * @param url URL to fetch
++ * @param options Fetch options
++ * @param maxRetries Maximum number of retries (default: 3)
++ * @param timeoutMs Timeout per attempt (default: 10000)
++ * @returns Fetch response
++ */
++export async function fetchWithRetry(
++  url: string | Request | URL,
++  options: RequestInit = {},
++  maxRetries: number = 3,
++  timeoutMs: number = 10000
++): Promise<Response> {
++  let lastError: Error
++  
++  for (let attempt = 0; attempt < maxRetries; attempt++) {
++    try {
++      return await fetchWithTimeout(url, options, timeoutMs)
++    } catch (error) {
++      lastError = error as Error
++      if (attempt < maxRetries - 1) {
++        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
++      }
++    }
++  }
++  
++  throw lastError!
++}
