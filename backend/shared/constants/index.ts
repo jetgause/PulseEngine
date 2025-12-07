@@ -4,6 +4,9 @@
 
 export const API_VERSION = 'v1'
 
+// Special value to represent unlimited/no limit
+export const UNLIMITED = -1
+
 export const TOOL_TYPES = {
   DATA_PROCESSOR: 'data_processor',
   API_CALLER: 'api_caller',

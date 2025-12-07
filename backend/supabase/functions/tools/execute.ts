@@ -179,7 +179,7 @@ async function executeToolLogic(tool: any, parameters: Record<string, any>): Pro
     case 'calculator':
       return calculate(parameters)
     default:
-      return { message: 'Tool executed successfully', parameters }
+      throw new Error(`Unknown tool type: ${tool.type}. Tool implementation required.`)
   }
 }
 

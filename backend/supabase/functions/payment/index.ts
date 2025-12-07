@@ -377,22 +377,44 @@ async function verifyCryptoPayment(req: Request, supabase: any) {
 }
 
 /**
- * Verify transaction on blockchain (placeholder)
+ * Verify transaction on blockchain
+ * IMPORTANT: This is a placeholder implementation that must be replaced
+ * with actual blockchain verification before production deployment.
+ * 
+ * Production implementation should:
+ * 1. Connect to Ethereum/BSC/Polygon network via RPC
+ * 2. Fetch transaction details using txHash
+ * 3. Verify recipient address matches platform wallet
+ * 4. Verify amount matches or exceeds expected amount
+ * 5. Verify transaction has sufficient confirmations (typically 3+)
+ * 6. Handle network errors and edge cases
  */
 async function verifyTransactionOnChain(
   txHash: string,
   walletAddress: string,
   amount: number
 ): Promise<boolean> {
-  // TODO: Implement actual blockchain verification using ethers.js or web3.js
-  // 1. Connect to Ethereum/BSC/Polygon network
-  // 2. Get transaction details
-  // 3. Verify recipient address matches platform wallet
-  // 4. Verify amount matches expected amount
-  // 5. Verify transaction is confirmed
+  // TODO: CRITICAL - Implement actual blockchain verification
+  // Example implementation using ethers.js:
+  // 
+  // const provider = new ethers.providers.JsonRpcProvider(process.env.ETH_RPC_URL)
+  // const tx = await provider.getTransaction(txHash)
+  // 
+  // if (!tx || tx.confirmations < 3) return false
+  // 
+  // const usdtInterface = new ethers.utils.Interface([
+  //   'function transfer(address to, uint256 value)'
+  // ])
+  // const decoded = usdtInterface.parseTransaction({ data: tx.data })
+  // 
+  // return decoded.args.to.toLowerCase() === PLATFORM_WALLET.toLowerCase() &&
+  //        parseFloat(ethers.utils.formatUnits(decoded.args.value, 6)) >= amount
   
-  console.log(`Verifying transaction: ${txHash}`)
-  return true // Placeholder
+  console.warn('SECURITY WARNING: Using placeholder blockchain verification')
+  console.log(`Transaction to verify: ${txHash}`)
+  
+  // DO NOT DEPLOY TO PRODUCTION WITH THIS PLACEHOLDER
+  throw new Error('Blockchain verification not implemented. Please implement actual verification before production use.')
 }
 
 /**

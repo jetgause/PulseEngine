@@ -67,14 +67,36 @@ export function validateTool(data: any, isUpdate = false): void {
 
 /**
  * Sanitize string input to prevent XSS
+ * Note: For production use with user-generated HTML content, consider using
+ * a comprehensive library like DOMPurify for better protection.
+ * This basic implementation handles common HTML entities.
  */
 export function sanitizeString(input: string): string {
+  if (!input) return ''
+  
   return input
+    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;')
+}
+
+/**
+ * Sanitize HTML content (basic implementation)
+ * For production with rich text content, use DOMPurify:
+ * 
+ * import DOMPurify from 'dompurify'
+ * export function sanitizeHTML(html: string): string {
+ *   return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a'] })
+ * }
+ */
+export function sanitizeHTML(html: string): string {
+  // This is a basic implementation. For production with user-generated HTML,
+  // use DOMPurify or a similar library for comprehensive XSS protection.
+  console.warn('Using basic HTML sanitization. Consider DOMPurify for production.')
+  return sanitizeString(html)
 }
 
 /**

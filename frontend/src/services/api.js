@@ -36,9 +36,12 @@ apiClient.interceptors.response.use(
       const { status, data } = error.response
       
       if (status === 401) {
-        // Unauthorized - clear token and redirect to login
+        // Unauthorized - clear token and notify app
         localStorage.removeItem('access_token')
-        window.location.href = '/login'
+        // Dispatch custom event for React Router to handle
+        window.dispatchEvent(new CustomEvent('auth:logout', { 
+          detail: { reason: 'unauthorized' } 
+        }))
       }
       
       return Promise.reject({
