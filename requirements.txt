@@ -1,0 +1,30 @@
+# Core dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Supabase client
+supabase>=2.0.0
+
+# API framework (for local development/testing)
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# Data validation
+python-dateutil>=2.8.2
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.4.0
+
+# Optional: For live data fetching
+yfinance>=0.2.28
+requests>=2.31.0
+
+# Optional: For advanced analytics
+matplotlib>=3.7.0
+seaborn>=0.12.0

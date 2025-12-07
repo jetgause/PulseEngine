@@ -1,0 +1,21 @@
+{
+  "name": "pulse-engine",
+  "version": "0.1.0",
+  "description": "3-layered trading bot platform with backtesting, optimization, and paper trading",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "test": "cd frontend && npm test",
+    "lint": "cd frontend && npm run lint"
+  },
+  "keywords": [
+    "trading",
+    "backtesting",
+    "paper-trading",
+    "options",
+    "finance"
+  ],
+  "author": "",
+  "license": "MIT"
+}
