@@ -75,19 +75,24 @@ serve(async (req) => {
 
       if (error) throw error
 
-      // Create user profile with service role
+      // Create user profile with service role (with error handling)
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       )
 
-      await supabaseAdmin.from('profiles').insert({
+      const { error: profileError } = await supabaseAdmin.from('profiles').insert({
         id: data.user?.id,
         email: validated.email,
         full_name: validated.metadata?.full_name,
         tier: 'free', // Default tier
         credits: 100, // Starter credits
       })
+
+      if (profileError) {
+        console.error('Failed to create profile:', profileError)
+        // Profile creation is handled by trigger as fallback
+      }
 
       return new Response(
         JSON.stringify({ 

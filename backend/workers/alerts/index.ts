@@ -121,13 +121,13 @@ async function sendDiscordAlert(data: any, supabase: any) {
     throw new Error(`Discord webhook failed: ${response.statusText}`)
   }
 
-  // Update alert record
-  await supabase
-    .from('alerts')
-    .update({ sent_to_discord: true })
-    .eq('user_id', userId)
-    .eq('alert_type', alertType)
-    .is('sent_to_discord', false)
+  // Update the specific alert record (not all matching type)
+  if (data.alertId) {
+    await supabase
+      .from('alerts')
+      .update({ sent_to_discord: true })
+      .eq('id', data.alertId)
+  }
 }
 
 /**
@@ -153,13 +153,13 @@ async function sendEmailAlert(data: any, supabase: any) {
     body: message,
   })
 
-  // Update alert record
-  await supabase
-    .from('alerts')
-    .update({ sent_to_email: true })
-    .eq('user_id', userId)
-    .eq('alert_type', alertType)
-    .is('sent_to_email', false)
+  // Update the specific alert record
+  if (data.alertId) {
+    await supabase
+      .from('alerts')
+      .update({ sent_to_email: true })
+      .eq('id', data.alertId)
+  }
 }
 
 /**
@@ -221,16 +221,13 @@ async function aggregateAlerts(data: any, supabase: any) {
     })
     .join('\n')
 
-  // Send digest
-  await handleAlertJob({
-    type: 'discord',
-    data: {
-      userId,
-      alertType: 'digest',
-      title: `${period.charAt(0).toUpperCase() + period.slice(1)} Alert Digest`,
-      message: digest,
-      metadata: { count: alerts.length },
-    },
+  // Send digest (queue instead of recursive call)
+  await supabase.from('alerts').insert({
+    user_id: userId,
+    alert_type: 'digest',
+    title: `${period.charAt(0).toUpperCase() + period.slice(1)} Alert Digest`,
+    message: digest,
+    metadata: { count: alerts.length },
   })
 }
 

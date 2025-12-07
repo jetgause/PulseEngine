@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     referral_code VARCHAR(50),
     referred_by UUID REFERENCES public.profiles(id),
     avatar_url TEXT,
+    stripe_customer_id VARCHAR(255),
+    subscription_status VARCHAR(50) DEFAULT 'none', -- none, active, past_due, canceled
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -18,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_tier ON public.profiles(tier);
 CREATE INDEX IF NOT EXISTS idx_profiles_referral_code ON public.profiles(referral_code);
+CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer_id ON public.profiles(stripe_customer_id);
 
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

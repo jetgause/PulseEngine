@@ -100,17 +100,32 @@ async function processStripeWebhook(event: any, supabase: any, stripe: any) {
 }
 
 /**
+ * Add months to a date safely (avoids date overflow issues)
+ */
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date)
+  const targetMonth = result.getMonth() + months
+  const year = result.getFullYear() + Math.floor(targetMonth / 12)
+  const month = targetMonth % 12
+  const day = result.getDate()
+  
+  // Set to first of target month then check if day exists
+  result.setFullYear(year, month, 1)
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
+  result.setDate(Math.min(day, lastDayOfMonth))
+  
+  return result
+}
+
+/**
  * Handle checkout completed
  */
 async function handleCheckoutCompleted(session: any, supabase: any) {
   const { userId, tierId, interval } = session.metadata
 
-  const expiresAt = new Date()
-  if (interval === 'yearly') {
-    expiresAt.setFullYear(expiresAt.getFullYear() + 1)
-  } else {
-    expiresAt.setMonth(expiresAt.getMonth() + 1)
-  }
+  const expiresAt = interval === 'yearly' 
+    ? addMonths(new Date(), 12)
+    : addMonths(new Date(), 1)
 
   // Update subscription
   await supabase.from('user_subscriptions').upsert({
@@ -134,11 +149,8 @@ async function handleCheckoutCompleted(session: any, supabase: any) {
     paid_at: new Date().toISOString(),
   })
 
-  // Queue notification
-  await handlePaymentJob({
-    type: 'payment_notification',
-    data: { userId, type: 'subscription_activated' }
-  })
+  // Queue notification (don't call recursively)
+  await queueNotificationJob(userId, 'subscription_activated', supabase)
 }
 
 /**
@@ -192,8 +204,7 @@ async function handlePaymentSucceeded(invoice: any, supabase: any) {
   })
 
   // Extend subscription
-  const expiresAt = new Date(subscription.expires_at)
-  expiresAt.setMonth(expiresAt.getMonth() + 1)
+  const expiresAt = addMonths(new Date(subscription.expires_at), 1)
 
   await supabase
     .from('user_subscriptions')
@@ -244,8 +255,7 @@ async function verifyCryptoTransaction(data: any, supabase: any) {
   console.log(`Verifying crypto transaction: ${txHash}`)
 
   // If verified, activate subscription
-  const expiresAt = new Date()
-  expiresAt.setMonth(expiresAt.getMonth() + 1)
+  const expiresAt = addMonths(new Date(), 1)
 
   await supabase.from('user_subscriptions').upsert({
     user_id: userId,
@@ -292,11 +302,21 @@ async function processSubscriptionRenewal(data: any, supabase: any) {
   // For Stripe subscriptions, renewal is automatic
   // For crypto, notify user to renew
   if (subscription.payment_method === 'usdt') {
-    await handlePaymentJob({
-      type: 'payment_notification',
-      data: { userId: subscription.user_id, type: 'renewal_required' }
-    })
+    await queueNotificationJob(subscription.user_id, 'renewal_required', supabase)
   }
+}
+
+/**
+ * Queue a notification job without recursion
+ */
+async function queueNotificationJob(userId: string, type: string, supabase: any) {
+  await supabase.from('alerts').insert({
+    user_id: userId,
+    alert_type: 'payment',
+    title: getNotificationTitle(type),
+    message: getNotificationMessage(type),
+    severity: 'info',
+  })
 }
 
 /**
