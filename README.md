@@ -358,11 +358,20 @@ npm test
 
 MIT License - see LICENSE file for details
 
+## Documentation
+
+- **[README.md](README.md)**: This file - overview and getting started
+- **[QUICKSTART.md](QUICKSTART.md)**: 5-minute quick start guide with examples
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Detailed system architecture and design
+- **[DEPLOYMENT.md](DEPLOYMENT.md)**: Step-by-step deployment guide
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)**: Complete implementation overview
+- **[examples/](examples/)**: Working code examples for all features
+
 ## Support
 
 For issues and questions:
 - GitHub Issues: https://github.com/jetgause/PulseEngine/issues
-- Documentation: See docs/ folder (coming soon)
+- Documentation: See files listed above
 
 ## Roadmap
 
