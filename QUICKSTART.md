@@ -19,8 +19,17 @@ PulseEngine is a complete trading bot platform that provides:
 git clone https://github.com/jetgause/PulseEngine.git
 cd PulseEngine
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python package with all dependencies
+pip install -e ".[all]"
+
+# Or install with only core dependencies
+# pip install -e .
+
+# Or install with specific optional dependencies:
+# pip install -e ".[api]"      # API framework support
+# pip install -e ".[data]"     # Live data fetching
+# pip install -e ".[analytics]" # Visualization tools
+# pip install -e ".[dev]"      # Development tools
 
 # Install frontend dependencies
 cd frontend
@@ -305,9 +314,9 @@ print(f"Total Combinations Tested: {len(results['all_results'])}")
 - Try deleting `node_modules` and reinstalling
 
 ### Python imports not working
-- Ensure you installed requirements: `pip install -r requirements.txt`
+- Ensure you installed the package: `pip install -e ".[all]"`
 - Check that you're in the correct directory
-- Try creating a virtual environment
+- Try creating a virtual environment and reinstalling
 
 ### Can't connect to Supabase
 - Verify your `.env` file has correct credentials

@@ -105,7 +105,8 @@ PulseEngine/
 │       ├── __init__.py
 │       └── paper_trader.py
 │
-├── requirements.txt         # Python dependencies
+├── requirements.txt         # Legacy dependency list (deprecated, use pyproject.toml)
+├── pyproject.toml          # Python package configuration
 ├── package.json            # Root package.json
 ├── netlify.toml            # Netlify deployment config
 └── README.md               # This file
@@ -127,9 +128,19 @@ git clone https://github.com/jetgause/PulseEngine.git
 cd PulseEngine
 ```
 
-#### 2. Install Python dependencies
+#### 2. Install Python package
 ```bash
-pip install -r requirements.txt
+# Install with all optional dependencies (recommended for development)
+pip install -e ".[all]"
+
+# Or install with only core dependencies
+pip install -e .
+
+# Or install specific optional dependencies:
+# pip install -e ".[api]"      # API framework support
+# pip install -e ".[data]"     # Live data fetching
+# pip install -e ".[analytics]" # Visualization tools
+# pip install -e ".[dev]"      # Development tools
 ```
 
 #### 3. Set up Supabase

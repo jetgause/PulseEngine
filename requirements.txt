@@ -1,3 +1,12 @@
+# DEPRECATED: This file is kept for backward compatibility only.
+# Please use pyproject.toml for package installation instead:
+#   pip install -e ".[all]"  # Install with all dependencies
+#   pip install -e .         # Install with core dependencies only
+#
+# The following dependencies are defined in pyproject.toml and are listed here
+# for reference only. To install from this file (legacy method):
+#   pip install -r requirements.txt
+#
 # Core dependencies
 pandas>=2.0.0
 numpy>=1.24.0
