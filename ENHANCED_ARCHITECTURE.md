@@ -39,20 +39,27 @@
 - **Client-Side Logic**: UI rendering, state management
 - **Direct Supabase Calls**: Read operations via Supabase client
 
-### 2. Edge Functions (Authentication Only)
+### 2. Edge Functions (Auth + Critical Operations)
 - **Auth Endpoints**:
-  - `POST /auth/register` - User registration
-  - `POST /auth/login` - User login with email/password
-  - `POST /auth/google` - Google OAuth callback
+  - `POST /auth/signup` - User registration with profile creation
+  - `POST /auth/signin` - User login with email/password
+  - `POST /auth/oauth` - Google OAuth authentication
   - `POST /auth/refresh` - Token refresh
   - `POST /auth/logout` - Session termination
-  - `GET /auth/verify` - Token verification
 
-**Why Auth Only?**
-- Low latency for authentication checks
-- Stateless operations (no heavy processing)
+- **Payment Webhook**:
+  - `POST /payment-webhook` - Stripe webhook handler (signature verification)
+
+- **Broker Operations**:
+  - `POST /broker-order` - Submit trade orders with auth + validation
+
+**Why These Functions on Edge?**
+- **Auth**: Low latency for authentication checks
+- **Payment Webhook**: External service requirement (Stripe callbacks)
+- **Broker Orders**: Real-time trading requires fast response
+- Stateless operations with minimal processing
 - Critical path optimization
-- Reduces edge function costs
+- Cost-effective for high-frequency operations
 
 ### 3. Supabase (Database + RLS)
 - **PostgreSQL Database**: All data storage
@@ -104,7 +111,22 @@
 7. Supabase RLS validates token automatically
 ```
 
-### Trading Flow
+### Trading Flow (via Broker Order Edge Function)
+```
+1. User places order → Frontend
+2. Frontend calls → Edge Function (/broker-order) with JWT
+3. Edge Function validates auth → Extracts user from JWT
+4. Validates order schema → Zod validation
+5. Checks idempotency → Prevents duplicate orders
+6. Fetches broker credentials → user_broker_connections table
+7. Submits order to broker API → (Alpaca, IBKR, etc.)
+8. Stores order record → Supabase orders table
+9. Returns order confirmation → Frontend
+10. Worker monitors order status → Updates in background
+11. Alert Worker sends notification → Discord/Email
+```
+
+### Alternative Trading Flow (Background Processing)
 ```
 1. User places order → Frontend
 2. Frontend writes to orders table → Supabase (RLS validates)
@@ -357,15 +379,114 @@ const isValidWebhook = await verifySignature(
 
 ## Implementation Priority
 
-1. **Phase 1**: Create auth-only edge functions
-2. **Phase 2**: Update frontend to use Supabase client directly
-3. **Phase 3**: Implement payment worker
-4. **Phase 4**: Implement broker worker
-5. **Phase 5**: Implement alert worker
-6. **Phase 6**: Remove old edge functions
+1. **Phase 1**: Create auth-only edge functions ✅
+2. **Phase 2**: Create payment webhook edge function ✅
+3. **Phase 3**: Create broker order edge function ✅
+4. **Phase 4**: Update frontend to use Supabase client directly
+5. **Phase 5**: Implement payment worker
+6. **Phase 6**: Implement broker worker
+7. **Phase 7**: Implement alert worker
+8. **Phase 8**: Remove old edge functions
+
+## Edge Function Details
+
+### Auth Edge Function (`/auth`)
+
+**Endpoints**:
+- `POST /auth/signup` - Email/password registration
+- `POST /auth/oauth` - Google OAuth sign-in
+- `POST /auth/signin` - Email/password sign-in
+
+**Features**:
+- Zod schema validation
+- Automatic profile creation with 100 starter credits
+- Referral code support with rewards
+- Email confirmation workflow
+
+### Payment Webhook Edge Function (`/payment-webhook`)
+
+**Purpose**: Handle Stripe webhook events securely
+
+**Events Handled**:
+- `checkout.session.completed` - Activate subscription
+- `payment_intent.succeeded` - Confirm payment
+- `customer.subscription.deleted` - Cancel subscription
+- `customer.subscription.updated` - Handle tier changes
+- `invoice.payment_failed` - Alert on payment failure
+
+**Security**:
+- Stripe signature verification
+- Service role key (appropriate for webhooks)
+- Transaction logging
+
+### Broker Order Edge Function (`/broker-order`)
+
+**Purpose**: Submit trade orders with real-time response
+
+**Request Schema**:
+```typescript
+{
+  broker: 'alpaca' | 'ibkr' | 'tradier' | 'td' | 'schwab',
+  action: 'buy' | 'sell',
+  symbol: string, // Stock ticker (e.g., 'AAPL')
+  qty: number, // 1-10,000
+  order_type: 'market' | 'limit',
+  limit_price?: number, // Required for limit orders
+  time_in_force: 'day' | 'gtc' | 'ioc'
+}
+```
+
+**Features**:
+- JWT authentication with token validation
+- Zod schema validation (ticker format, quantity limits)
+- Idempotency key support (prevents duplicate orders)
+- Broker credential lookup from `user_broker_connections`
+- Direct broker API integration (Alpaca implemented)
+- Order record persistence in database
+- Comprehensive error handling
+
+**Supported Brokers**:
+- ✅ Alpaca (full implementation)
+- 🚧 Interactive Brokers (placeholder)
+- 🚧 Tradier (placeholder)
+- 🚧 TD Ameritrade (placeholder - migrating to Schwab)
+- 🚧 Charles Schwab (placeholder)
+
+**Usage Example**:
+```typescript
+const response = await fetch('/broker-order', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${jwt_token}`,
+    'Content-Type': 'application/json',
+    'Idempotency-Key': crypto.randomUUID()
+  },
+  body: JSON.stringify({
+    broker: 'alpaca',
+    action: 'buy',
+    symbol: 'AAPL',
+    qty: 10,
+    order_type: 'market',
+    time_in_force: 'day'
+  })
+})
+
+const { data: order } = await response.json()
+// Returns: { id, broker_order_id, status, symbol, qty, ... }
+```
+
+**Idempotency**:
+- Client provides `Idempotency-Key` header (UUID recommended)
+- Prevents duplicate orders on network retries
+- Returns cached response if key already exists
+
+**Database Schema**:
+- Added `idempotency_key` column to `orders` table
+- Unique constraint ensures no duplicate keys
+- Indexed for fast lookups
 
 ---
 
 **Architecture Version**: 2.0
-**Status**: Enhanced for Production Scale
+**Status**: Enhanced for Production Scale with Real-Time Trading
 **Updated**: December 7, 2025
