@@ -116,11 +116,11 @@ serve(async (req) => {
       )
     }
 
-    // Execute tool logic (placeholder - implement actual tool execution)
+    // Execute tool logic - implementations below
     const result = await executeToolLogic(tool, parameters)
 
     // Update execution record with result
-    await supabaseClient
+    const { error: updateError } = await supabaseClient
       .from('tool_executions')
       .update({
         status: 'completed',
@@ -128,6 +128,11 @@ serve(async (req) => {
         completed_at: new Date().toISOString(),
       })
       .eq('id', executionId)
+
+    if (updateError) {
+      console.error('Failed to update execution record:', updateError)
+      // Continue anyway - execution succeeded even if we couldn't save the result
+    }
 
     const response: ToolExecutionResponse = {
       executionId,
