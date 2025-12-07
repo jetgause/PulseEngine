@@ -54,12 +54,15 @@
   - `POST /broker-oauth/disconnect` - Revoke broker access
   - `GET /broker-oauth/status` - List active broker connections
   - **Automatic Token Refresh**: Tokens refreshed automatically before expiry
+  - **Special Handling**: IBKR uses session-based authentication via Client Portal Gateway
 
 - **Payment Webhook**:
   - `POST /payment-webhook` - Stripe webhook handler (signature verification)
 
 - **Broker Operations**:
   - `POST /broker-order` - Submit trade orders with auth + validation
+  - **OAuth2 Brokers**: Alpaca, TD Ameritrade, Charles Schwab, E*TRADE, Tradier
+  - **Session-Based**: IBKR (Client Portal Gateway required until OAuth2 is public)
 
 - **Market Data Endpoints**:
   - `GET /market-data/quotes?symbols=AAPL,TSLA` - Real-time stock quotes (Alpaca)

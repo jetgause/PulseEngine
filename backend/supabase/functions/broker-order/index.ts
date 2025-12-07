@@ -68,8 +68,14 @@ serve(async (req) => {
     }
 
     // Get valid OAuth2 credentials (auto-refreshes if needed)
-    const oauth2Manager = createOAuth2Manager(order.broker)
-    const credentials = await oauth2Manager.getValidCredentials(user.id)
+    // IBKR uses session-based auth, so we pass user context differently
+    let credentials
+    if (order.broker === 'ibkr') {
+      credentials = { user_id: user.id }
+    } else {
+      const oauth2Manager = createOAuth2Manager(order.broker)
+      credentials = await oauth2Manager.getValidCredentials(user.id)
+    }
 
     // Submit order to broker
     let result
@@ -200,11 +206,35 @@ async function submitAlpacaOrder(credentials: any, order: any) {
   }
 }
 
-// IBKR integration (placeholder)
+// IBKR integration (session-based until OAuth2 is public)
 async function submitIBKROrder(credentials: any, order: any) {
-  // Implement IBKR Client Portal API integration
-  // https://www.interactivebrokers.com/api/doc.html
-  throw new Error('IBKR integration not implemented - requires Client Portal API setup')
+  // IBKR uses session-based authentication via Client Portal Gateway
+  // User must have the gateway running locally
+  const { createIBKRSessionAuth } = await import('../../shared/lib/ibkr-session-auth.ts')
+  
+  // credentials.user_id should be passed from the calling context
+  // For now, we'll extract it from the credentials object
+  const userId = credentials.user_id
+  if (!userId) {
+    throw new Error('User ID required for IBKR session authentication')
+  }
+  
+  const ibkr = createIBKRSessionAuth(userId)
+  
+  const result = await ibkr.submitOrder({
+    symbol: order.symbol,
+    action: order.action,
+    quantity: order.qty,
+    orderType: order.order_type,
+    price: order.limit_price,
+    tif: order.time_in_force,
+  })
+  
+  return {
+    orderId: result[0]?.order_id || result[0]?.id,
+    status: result[0]?.order_status || 'submitted',
+    metadata: result,
+  }
 }
 
 // Tradier integration (placeholder)
