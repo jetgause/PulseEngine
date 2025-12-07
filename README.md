@@ -1,408 +1,306 @@
-# PulseEngine - Advanced Trading Bot Platform
+# PulseEngine
 
-A comprehensive 3-layered trading bot platform with backtesting, strategy optimization, paper trading, and options Greeks calculation capabilities.
+A robust edge tools platform with backend logic management, designed for scalability and security.
 
-## Architecture
+## 🎯 Overview
 
-PulseEngine is built with a modern 3-layer architecture:
+PulseEngine is a modern web application that separates edge tools logic in the backend, ensuring security, consistency, and easy management. The system features:
 
-### 1. Frontend Layer (Netlify)
-- **Technology**: React + Vite
-- **Features**: 
-  - Interactive dashboard
-  - Paper trading interface
-  - Backtesting configuration
-  - Strategy optimization
-  - Options Greeks calculator
-  - Real-time data visualization
+- **Edge Tools Logic in Backend**: All tool logic stays server-side for security and maintainability
+- **Robust API Management**: RESTful APIs with authentication, rate limiting, and comprehensive error handling
+- **Advanced Data Handling**: PostgreSQL database with real-time subscriptions and caching
+- **Frontend on Netlify**: React-based frontend with automatic CI/CD deployment
+- **Backend on Supabase**: PostgreSQL, Edge Functions (Deno), and built-in authentication
 
-### 2. Backend Layer (Supabase)
-- **Technology**: Supabase (PostgreSQL + Edge Functions)
-- **Features**:
-  - RESTful API endpoints
-  - Real-time data synchronization
-  - User authentication
-  - Secure data storage
-  - Edge Functions for serverless compute
-
-### 3. Core Trading Logic Layer
-- **Technology**: Python
-- **Modules**:
-  - **Backtester**: Historical strategy testing
-  - **Optimizer**: Parameter optimization (Grid Search, Monte Carlo, Walk Forward)
-  - **Greeks Calculator**: Options pricing and risk metrics
-  - **Paper Trader**: Simulated trading environment
-
-## Features
-
-### Paper Trading
-- Practice trading without risking real capital
-- Automatic trade tracking and execution
-- Portfolio management
-- Real-time position updates
-- Order management (Market, Limit orders)
-
-### Backtesting Engine
-- Test strategies against historical data
-- Comprehensive performance metrics:
-  - Total return and P&L
-  - Win rate and profit factor
-  - Maximum drawdown
-  - Trade statistics
-- Support for multiple strategies
-
-### Strategy Optimizer
-- **Grid Search**: Exhaustive parameter testing
-- **Monte Carlo**: Random sampling for large parameter spaces
-- **Walk Forward**: Out-of-sample testing to prevent overfitting
-- Parameter sensitivity analysis
-- Optimization job tracking
-
-### Options Greeks Calculator
-Calculate all major Greeks using Black-Scholes model:
-- **Delta**: Price sensitivity
-- **Gamma**: Delta sensitivity
-- **Vega**: Volatility sensitivity
-- **Theta**: Time decay
-- **Rho**: Interest rate sensitivity
-
-## Project Structure
+## 🏗️ Architecture
 
 ```
-PulseEngine/
-├── frontend/                 # React frontend application
-│   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/           # Page components
-│   │   ├── services/        # API service layer
-│   │   ├── styles/          # CSS stylesheets
-│   │   ├── App.jsx          # Main app component
-│   │   └── main.jsx         # Entry point
-│   ├── package.json
-│   └── vite.config.js
-│
-├── backend/                  # Supabase backend
-│   └── supabase/
-│       ├── functions/       # Edge Functions
-│       │   ├── backtest/    # Backtesting API
-│       │   ├── paper-trading/ # Paper trading API
-│       │   ├── greeks/      # Options Greeks API
-│       │   └── optimize/    # Optimization API
-│       ├── migrations/      # Database migrations
-│       └── config.toml      # Supabase configuration
-│
-├── core/                     # Core trading logic
-│   ├── backtester/          # Backtesting engine
-│   │   ├── __init__.py
-│   │   └── engine.py
-│   ├── optimizer/           # Strategy optimizer
-│   │   ├── __init__.py
-│   │   └── strategy_optimizer.py
-│   ├── greeks/              # Options Greeks calculator
-│   │   ├── __init__.py
-│   │   └── options_greeks.py
-│   └── paper_trader/        # Paper trading system
-│       ├── __init__.py
-│       └── paper_trader.py
-│
-├── requirements.txt         # Legacy dependency list (deprecated, use pyproject.toml)
-├── pyproject.toml          # Python package configuration
-├── package.json            # Root package.json
-├── netlify.toml            # Netlify deployment config
-└── README.md               # This file
+Frontend (Netlify) → API Gateway (Supabase Edge Functions) → Backend Services
+                                                           → Database (PostgreSQL)
+                                                           → Storage
 ```
 
-## Setup Instructions
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation.
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Python 3.9+
-- Supabase account
-- Netlify account (for deployment)
 
-### Local Development
+- Node.js 18+
+- npm or yarn
+- Supabase CLI (for backend development)
 
-#### 1. Clone the repository
-```bash
-git clone https://github.com/jetgause/PulseEngine.git
-cd PulseEngine
-```
+### Frontend Setup
 
-#### 2. Install Python package
-```bash
-# Install with all optional dependencies (recommended for development)
-pip install -e ".[all]"
-
-# Or install with only core dependencies
-pip install -e .
-
-# Or install specific optional dependencies:
-# pip install -e ".[api]"      # API framework support
-# pip install -e ".[data]"     # Live data fetching
-# pip install -e ".[analytics]" # Visualization tools
-# pip install -e ".[dev]"      # Development tools
-```
-
-#### 3. Set up Supabase
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Initialize Supabase (if not already done)
-cd backend/supabase
-supabase init
-
-# Start local Supabase
-supabase start
-
-# Run migrations
-supabase db push
-```
-
-#### 4. Configure environment variables
-```bash
-# Frontend
-cd frontend
-cp .env.example .env
-# Edit .env with your Supabase URL and API keys
-```
-
-#### 5. Install frontend dependencies
 ```bash
 cd frontend
 npm install
-```
-
-#### 6. Start development server
-```bash
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`
+The frontend will be available at `http://localhost:3000`
 
-## Deployment
+### Backend Setup
 
-### Deploy to Netlify (Frontend)
-
-#### Option 1: Netlify CLI
+1. Install Supabase CLI:
 ```bash
-# Install Netlify CLI
-npm install -g netlify-cli
-
-# Login to Netlify
-netlify login
-
-# Deploy
-netlify deploy --prod
+npm install -g supabase
 ```
 
-#### Option 2: GitHub Integration
-1. Connect your GitHub repository to Netlify
-2. Configure build settings:
-   - Build command: `cd frontend && npm install && npm run build`
-   - Publish directory: `frontend/dist`
-3. Add environment variables in Netlify dashboard
-4. Deploy
-
-### Deploy to Supabase (Backend)
-
-#### 1. Create Supabase Project
+2. Start local Supabase:
 ```bash
-# Link to your Supabase project
-supabase link --project-ref your-project-ref
+cd backend
+supabase start
+```
 
-# Push database schema
+3. Run migrations:
+```bash
 supabase db push
-
-# Deploy Edge Functions
-supabase functions deploy backtest
-supabase functions deploy paper-trading
-supabase functions deploy greeks
-supabase functions deploy optimize
 ```
 
-#### 2. Set Environment Variables
-In Supabase dashboard, configure:
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-## Database Schema
-
-The platform uses the following main tables:
-
-- **market_data**: Historical price data
-- **backtests**: Backtest results and configurations
-- **paper_accounts**: Paper trading account information
-- **paper_positions**: Current trading positions
-- **paper_orders**: Order history
-- **paper_trades**: Executed trades
-- **optimization_jobs**: Strategy optimization jobs
-- **strategies**: User-defined trading strategies
-
-All tables include Row Level Security (RLS) policies for data protection.
-
-## API Endpoints
-
-### Edge Functions
-
-#### Backtest API
-```
-POST /backtest
-Body: {
-  strategy_name, params, start_date, end_date, initial_capital
-}
+4. Deploy edge functions (optional for local development):
+```bash
+supabase functions deploy
 ```
 
-#### Paper Trading API
+## 📁 Project Structure
+
 ```
-POST /paper-trading
-Body: {
-  action: "submit_order" | "get_portfolio" | "get_trade_history",
-  user_id, symbol, side, order_type, quantity, price
-}
-```
-
-#### Greeks Calculator API
-```
-POST /greeks
-Body: {
-  spot_price, strike_price, time_to_expiry, volatility,
-  risk_free_rate, dividend_yield, option_type
-}
-```
-
-#### Optimizer API
-```
-POST /optimize
-Body: {
-  strategy_name, method, param_grid, start_date, end_date
-}
-```
-
-## Usage Examples
-
-### Backtesting a Strategy
-```python
-from core import BacktestEngine
-import pandas as pd
-
-# Load historical data
-data = pd.read_csv('historical_data.csv')
-
-# Initialize backtest engine
-engine = BacktestEngine(initial_capital=100000, commission=0.001)
-
-# Define strategy
-def moving_average_strategy(data, params):
-    # Strategy logic here
-    pass
-
-# Run backtest
-results = engine.run_backtest(data, moving_average_strategy, 
-                             {'short_window': 20, 'long_window': 50})
-print(results)
+PulseEngine/
+├── frontend/               # Frontend application (Netlify)
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── pages/         # Page components
+│   │   ├── services/      # API service layer
+│   │   │   ├── api.js     # API client with interceptors
+│   │   │   ├── auth.js    # Authentication service
+│   │   │   ├── tools.js   # Tool management service
+│   │   │   └── data.js    # Data handling service
+│   │   ├── hooks/         # Custom React hooks
+│   │   └── store/         # State management
+│   ├── netlify.toml       # Netlify configuration
+│   └── package.json
+│
+├── backend/                # Backend services (Supabase)
+│   ├── supabase/
+│   │   ├── functions/     # Edge Functions (Deno)
+│   │   │   ├── api/       # API Gateway
+│   │   │   ├── tools/     # Tool execution endpoints
+│   │   │   └── data/      # Data handling
+│   │   ├── migrations/    # Database migrations
+│   │   └── config.toml    # Supabase configuration
+│   ├── shared/            # Shared code
+│   │   ├── types/         # TypeScript type definitions
+│   │   ├── validators/    # Data validation schemas
+│   │   └── constants/     # Shared constants
+│   └── scripts/           # Deployment scripts
+│
+├── ARCHITECTURE.md        # Detailed architecture documentation
+└── README.md             # This file
 ```
 
-### Calculating Options Greeks
-```python
-from core import OptionsGreeks
+## 🔑 Key Features
 
-# Initialize calculator
-greeks = OptionsGreeks(
-    spot_price=100,
-    strike_price=105,
-    time_to_expiry=0.25,  # 3 months
-    volatility=0.20,
-    risk_free_rate=0.05
-)
+### 1. Edge Tools Management
 
-# Calculate all Greeks
-all_greeks = greeks.all_greeks('call')
-print(f"Delta: {all_greeks['delta']}")
-print(f"Gamma: {all_greeks['gamma']}")
-print(f"Vega: {all_greeks['vega']}")
+Tools are managed entirely in the backend with a plugin architecture:
+
+```typescript
+// Execute a tool via API
+const result = await toolService.executeTool('tool-id', {
+  parameter1: 'value',
+  parameter2: 123
+})
 ```
 
-### Paper Trading
-```python
-from core import PaperTrader, OrderSide, OrderType
+### 2. Robust API Management
 
-# Initialize paper trader
-trader = PaperTrader(initial_capital=100000)
+- **Authentication**: JWT-based with Supabase Auth
+- **Rate Limiting**: Configurable per-endpoint limits
+- **Error Handling**: Standardized error responses
+- **Request Validation**: Input validation at API level
+- **Logging**: Comprehensive request/response logging
 
-# Submit order
-order = trader.submit_order(
-    symbol='AAPL',
-    side=OrderSide.BUY,
-    order_type=OrderType.MARKET,
-    quantity=100
-)
+### 3. Data Handling
 
-# Execute at market price
-trader.execute_order(order, 150.00)
-
-# Get portfolio summary
-summary = trader.get_portfolio_summary()
-print(summary)
+```typescript
+// CRUD operations via data service
+const users = await dataService.getAll('users', { page: 1, limit: 10 })
+const user = await dataService.getById('users', 'user-id')
+const newUser = await dataService.create('users', { name: 'John' })
 ```
 
-## Testing
+### 4. Real-time Subscriptions
+
+```typescript
+// Subscribe to real-time updates
+supabase
+  .from('tool_executions')
+  .on('INSERT', payload => {
+    console.log('New execution:', payload.new)
+  })
+  .subscribe()
+```
+
+## 🔒 Security
+
+- **Row Level Security (RLS)**: Database-level access control
+- **JWT Authentication**: Secure token-based auth
+- **Input Validation**: All inputs validated before processing
+- **Rate Limiting**: Prevent API abuse
+- **CORS Configuration**: Restricted to known origins
+- **Environment Variables**: Sensitive data in env vars
+
+## 🧪 Testing
 
 ```bash
-# Run Python tests
-pytest
-
-# Run frontend tests
+# Frontend tests
 cd frontend
 npm test
+
+# Backend tests
+cd backend
+deno test
 ```
 
-## Contributing
+## 📦 Deployment
+
+### Frontend (Netlify)
+
+1. Connect your GitHub repository to Netlify
+2. Configure build settings:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+3. Add environment variables in Netlify dashboard
+4. Deploy automatically on push to main branch
+
+### Backend (Supabase)
+
+1. Create a Supabase project
+2. Link your local project:
+```bash
+supabase link --project-ref your-project-ref
+```
+
+3. Deploy migrations:
+```bash
+supabase db push
+```
+
+4. Deploy edge functions:
+```bash
+supabase functions deploy
+```
+
+## 🔧 Configuration
+
+### Frontend Environment Variables
+
+Create `.env` file in `frontend/`:
+
+```env
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_API_BASE_URL=your-api-url
+```
+
+### Backend Environment Variables
+
+Copy `backend/.env.example` to `backend/.env` and configure:
+
+```env
+SUPABASE_URL=your-supabase-url
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_URL=your-database-url
+JWT_SECRET=your-jwt-secret
+```
+
+## 📊 Database Schema
+
+### Tables
+
+- **tools**: Tool definitions and configurations
+- **tool_executions**: Tool execution history and results
+
+See `backend/supabase/migrations/` for detailed schema.
+
+## 🛠️ Development
+
+### Adding a New Tool
+
+1. Define tool in database:
+```sql
+INSERT INTO tools (name, description, type, category) 
+VALUES ('My Tool', 'Description', 'custom', 'utilities');
+```
+
+2. Implement tool logic in `backend/supabase/functions/tools/execute.ts`
+
+3. Tool becomes immediately available via API
+
+### Adding a New API Endpoint
+
+1. Update routing in `backend/supabase/functions/api/gateway.ts`
+2. Implement handler function
+3. Add validation if needed
+
+## 📚 API Documentation
+
+### Authentication
+
+```
+POST /auth/login
+POST /auth/register
+POST /auth/logout
+```
+
+### Tools
+
+```
+GET    /api/v1/tools              # List all tools
+GET    /api/v1/tools/:id          # Get tool details
+POST   /api/v1/tools/:id/execute  # Execute a tool
+GET    /api/v1/tools/:id/history  # Get execution history
+```
+
+### Data
+
+```
+GET    /api/v1/data/:resource           # List resources
+GET    /api/v1/data/:resource/:id       # Get resource
+POST   /api/v1/data/:resource           # Create resource
+PUT    /api/v1/data/:resource/:id       # Update resource
+DELETE /api/v1/data/:resource/:id       # Delete resource
+```
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests
+4. Run tests
 5. Submit a pull request
 
-## License
+## 📝 License
 
 MIT License - see LICENSE file for details
 
-## Documentation
-
-- **[README.md](README.md)**: This file - overview and getting started
-- **[QUICKSTART.md](QUICKSTART.md)**: 5-minute quick start guide with examples
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Detailed system architecture and design
-- **[DEPLOYMENT.md](DEPLOYMENT.md)**: Step-by-step deployment guide
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)**: Complete implementation overview
-- **[examples/](examples/)**: Working code examples for all features
-
-## Support
+## 🆘 Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/jetgause/PulseEngine/issues
-- Documentation: See files listed above
+- GitHub Issues: [Create an issue](https://github.com/jetgause/PulseEngine/issues)
+- Documentation: See [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-## Roadmap
+## 🗺️ Roadmap
 
-- [ ] Real-time market data integration
-- [ ] Advanced charting and visualization
-- [ ] Machine learning strategy generation
-- [ ] Social trading features
-- [ ] Mobile app
-- [ ] Advanced risk management tools
-- [ ] Multi-asset support (crypto, forex, futures)
-- [ ] Strategy marketplace
-
-## Acknowledgments
-
-Built with:
-- React & Vite
-- Supabase
-- Python (pandas, numpy, scipy)
-- Recharts for visualization
+- [ ] WebSocket support for real-time tool execution
+- [ ] Advanced caching strategies
+- [ ] Multi-region deployment
+- [ ] GraphQL API
+- [ ] Tool marketplace
+- [ ] Advanced monitoring and analytics
 
 ---
 
-**Note**: This is a paper trading platform for educational and testing purposes. Always conduct thorough testing before using any strategy with real capital.
+Built with ❤️ using React, Supabase, and Deno
