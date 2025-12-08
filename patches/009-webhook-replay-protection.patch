@@ -1,0 +1,60 @@
+diff --git a/backend/supabase/functions/payment-webhook/index.ts b/backend/supabase/functions/payment-webhook/index.ts
+index 0000000..1111111 100644
+--- a/backend/supabase/functions/payment-webhook/index.ts
++++ b/backend/supabase/functions/payment-webhook/index.ts
+@@ -17,6 +17,9 @@ import Stripe from 'https://esm.sh/stripe@13.11.0'
+  */
+ 
+ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+   apiVersion: '2023-10-16',
+ })
+ 
++// Store processed event IDs to prevent replay attacks
++const processedEvents = new Map<string, number>() // eventId -> timestamp
++
++// Cleanup old processed events (older than 24 hours)
++setInterval(() => {
++  const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000)
++  for (const [eventId, timestamp] of processedEvents.entries()) {
++    if (timestamp < oneDayAgo) {
++      processedEvents.delete(eventId)
++    }
++  }
++}, 60 * 60 * 1000) // Run every hour
++
+ serve(async (req) => {
+   const supabase = createClient(
+     Deno.env.get('SUPABASE_URL') ?? '',
+@@ -43,7 +46,22 @@ serve(async (req) => {
+     // Verify webhook signature
+     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+ 
+     console.log('Webhook received:', event.type, 'ID:', event.id)
++    
++    // Check if event already processed (replay attack prevention)
++    if (processedEvents.has(event.id)) {
++      console.warn(`⚠️  Duplicate webhook event detected: ${event.id}`)
++      return new Response(
++        JSON.stringify({ 
++          received: true, 
++          message: 'Event already processed' 
++        }),
++        { status: 200, headers: { 'Content-Type': 'application/json' } }
++      )
++    }
++    
++    // Validate event timestamp (reject events older than 5 minutes)
++    const eventAge = Date.now() - (event.created * 1000)
++    if (eventAge > 5 * 60 * 1000) {
++      console.warn(`⚠️  Old webhook event rejected: ${event.id}, age: ${eventAge}ms`)
++      return new Response(
++        JSON.stringify({ error: 'Event too old' }),
++        { status: 400, headers: { 'Content-Type': 'application/json' } }
++      )
++    }
++    
++    // Mark event as processed
++    processedEvents.set(event.id, Date.now())
+ 
+     // Handle checkout.session.completed
+     if (event.type === 'checkout.session.completed') {
