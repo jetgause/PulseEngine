@@ -2,10 +2,24 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('FRONTEND_URL') ?? '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+// Fixed: Strict CORS configuration - no wildcards
+const ALLOWED_ORIGINS = [
+  Deno.env.get('FRONTEND_URL'),
+  'http://localhost:5173', // Vite dev server
+  'http://localhost:3000', // Alternative dev port
+].filter(Boolean);
+
+function getCorsHeaders(origin: string | null): HeadersInit {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) 
+    ? origin 
+    : ALLOWED_ORIGINS[0] || 'https://pulseengine.netlify.app';
+    
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+  };
 }
 
 // Validation schemas
@@ -46,6 +60,9 @@ const RefreshSchema = z.object({
  */
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
