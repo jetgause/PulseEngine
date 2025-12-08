@@ -65,4 +65,49 @@ apiClient.interceptors.response.use(
   }
 )
 
+// API Methods
+export const getBacktests = async () => {
+  return await apiClient.get('/backtests');
+};
+
+export const runBacktest = async (data) => {
+  return await apiClient.post('/backtests/run', data);
+};
+
+export const getPaperPortfolio = async () => {
+  return await apiClient.get('/paper-trading/portfolio');
+};
+
+export const getPaperTradeHistory = async () => {
+  return await apiClient.get('/paper-trading/history');
+};
+
+export const submitPaperOrder = async (data) => {
+  return await apiClient.post('/paper-trading/orders', data);
+};
+
+export const getOptimizationJobs = async () => {
+  return await apiClient.get('/optimization/jobs');
+};
+
+export const createBacktest = async (data) => {
+  return await apiClient.post('/backtests', data);
+};
+
+export const getGreeksData = async (params) => {
+  return await apiClient.post('/greeks/calculate', params);
+};
+
+export const runOptimization = async (data) => {
+  return await apiClient.post('/optimization/run', data);
+};
+
+export const startOptimization = async (data) => {
+  return await apiClient.post('/optimization/start', data);
+};
+
+export const calculateGreeks = async (data) => {
+  return await apiClient.post('/greeks/calculate', data);
+};
+
 export default apiClient

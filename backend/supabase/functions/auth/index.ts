@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
+import { rateLimiters, getClientIdentifier } from '../_shared/rate-limiter.ts'
 
 // Fixed: Strict CORS configuration - no wildcards
 const ALLOWED_ORIGINS = [
@@ -66,6 +67,24 @@ serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
+  }
+
+  // Rate limiting check for auth endpoints
+  const clientId = getClientIdentifier(req);
+  const { allowed, resetIn, reason } = await rateLimiters.auth.checkLimit(clientId);
+  
+  if (!allowed) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Too many authentication attempts',
+        reason,
+        resetIn,
+      }),
+      { 
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   const supabase = createClient(

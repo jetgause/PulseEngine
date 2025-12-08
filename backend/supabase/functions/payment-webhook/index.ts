@@ -45,6 +45,28 @@ serve(async (req) => {
 
     console.log('Webhook received:', event.type, 'ID:', event.id)
 
+    // Replay attack protection: Check if event already processed
+    const { data: existingEvent } = await supabase
+      .from('processed_webhook_events')
+      .select('id')
+      .eq('event_id', event.id)
+      .single()
+
+    if (existingEvent) {
+      console.log(`Event ${event.id} already processed, skipping...`)
+      return new Response(
+        JSON.stringify({ received: true, already_processed: true }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Record event as processed
+    await supabase.from('processed_webhook_events').insert({
+      event_id: event.id,
+      event_type: event.type,
+      processed_at: new Date().toISOString(),
+    })
+
     // Handle checkout.session.completed
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
